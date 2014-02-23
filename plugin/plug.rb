@@ -40,6 +40,11 @@ class Jumper
   end
 
   def find_best_jump_entry(jump_entries)
+    if jump_entries.length == 1
+      puts "only one match"
+      return jump_entries[0]
+    end
+
     same_file_entries = in_same_file(jump_entries)
     if(!same_file_entries.empty?)
       puts "found in same file"
