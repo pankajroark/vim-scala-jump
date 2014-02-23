@@ -1,10 +1,38 @@
+module Util
+  def Util.drop_extension filepath
+    parts = filepath.split('/')
+    filename = parts.pop
+    filename_minus_extension = filename.split('.').first
+    parts << filename_minus_extension
+    parts.join('/')
+  end
+
+  def Util.get_filename filepath
+    parts = filepath.split('/')
+    parts.last
+  end
+
+  def Util.get_filename_parts filename
+    filename.split('.')
+  end
+
+  def Util.log msg
+    VIM::message msg
+  end
+end
+
 class JumpEntry
+
+  attr_accessor :filepath
+  attr_accessor :regex
+  attr_reader :filepath_without_extension
+
   def initialize(filepath, regex)
     @filepath = filepath
     @regex = regex
+    @filepath_without_extension = Util.drop_extension filepath
   end
-  attr_accessor :filepath
-  attr_accessor :regex
+
 end
 
 class Jumper
@@ -19,9 +47,29 @@ class Jumper
     jump_list = jump_list_str.split("\n")
     clean_up_jump_list(jump_list)
     jump_entries = get_jump_entries(jump_list)
+    if(jump_entries.empty?)
+      Util.log "no matches found"
+      return
+    end
+    jump_entries = filter_jump_entries(jump_entries)
+    if(jump_entries.empty?)
+      Util.log "matches found but filtered out"
+      return
+    end
     best_jump_entry = find_best_jump_entry(jump_entries)
-    puts "best jump entry : #{best_jump_entry.filepath}"
+    Util.log("best jump entry : #{best_jump_entry.filepath}")
     jump_to_entry(best_jump_entry)
+  end
+
+  # Filter out spec files
+  # Filter out files other than java/scala
+  def filter_jump_entries jump_entries
+    jump_entries.select do |jump_entry|
+      filepath = jump_entry.filepath
+      filename = Util.get_filename(filepath)
+      subname, ext = Util.get_filename_parts filename
+      !subname.end_with?('Spec') && (ext == 'java' || ext == 'scala')
+    end
   end
 
   def jump_to_entry jump_entry
@@ -41,19 +89,19 @@ class Jumper
 
   def find_best_jump_entry(jump_entries)
     if jump_entries.length == 1
-      puts "only one match"
+      Util.log "only one match"
       return jump_entries[0]
     end
 
     same_file_entries = in_same_file(jump_entries)
     if(!same_file_entries.empty?)
-      puts "found in same file"
+      Util.log "found in same file"
       return same_file_entries.first
     end
 
     same_dir_entries = in_same_dir(jump_entries)
     if(!same_dir_entries.empty?)
-      puts "found in same directory"
+      Util.log "found in same directory"
       return same_dir_entries.first
     end
 
@@ -81,24 +129,24 @@ class Jumper
     # find the entry that matches the most with import paths
     best_entry = jump_entries.first
     best_match_count = -1
-    jump_entries.each do | jump_entry|
-      filepath = jump_entry.filepath
-      match_count = imports_match_count(filepath, imports)
+    jump_entries.each do |jump_entry|
+      filepath_without_extension = jump_entry.filepath_without_extension
+      match_count = imports_match_count(filepath_without_extension, imports)
       if(match_count > best_match_count)
         best_match_count = match_count
         best_entry = jump_entry
       end
     end
-    puts "best entry has match count of #{best_match_count}"
+    Util.log "best entry has match count of #{best_match_count}"
     best_entry
   end
 
   # imports are array of dot separated parts
   # path is a file path
-  def imports_match_count(filepath, imports)
+  def imports_match_count(filepath_without_extension, imports)
     max = 0
     imports.each do |import_path|
-      match_count = import_match_count(filepath, import_path)
+      match_count = import_match_count(filepath_without_extension, import_path)
       if (match_count > max)
         max = match_count
       end
@@ -108,11 +156,8 @@ class Jumper
 
   # path is a filepath
   # import is dot separated parts
-  def import_match_count(filepath, import)
-    import_path = import.gsub(".", "/")
-    filepath_minus_extension = drop_extension(filepath)
-
-    lcs = find_longest_common_substring(import_path, filepath_minus_extension) 
+  def import_match_count(filepath_without_extension, import)
+    lcs = find_longest_common_substring(import, filepath_without_extension) 
     #puts "#{filepath} - #{import_path} : #{lcs}"
     lcs.split("/").length
   end
@@ -143,14 +188,6 @@ class Jumper
   def dir_from_filepath filepath
     parts = filepath.split('/')
     parts.pop
-    parts.join('/')
-  end
-
-  def drop_extension filepath
-    parts = filepath.split('/')
-    filename = parts.pop
-    filename_minus_extension = filename.split('.').first
-    parts << filename_minus_extension
     parts.join('/')
   end
 
@@ -201,7 +238,8 @@ class ImportsGrabber
       line.start_with? "import"
     end
     import_lines.map do |line|
-      line.split(/\s+/).last
+      import = line.split(/\s+/).last
+      import.gsub('.', '/')
     end
   end
 
