@@ -172,7 +172,8 @@ class Jumper
         last_line = line
       end
     end
-    if (!(filepath.nil? || regex.nil?))
+    if (!(filepath.nil? || last_line.nil?))
+      regex = last_line.strip
       jump_entries << JumpEntry.new(filepath.clone, regex.clone)
     end
     jump_entries
