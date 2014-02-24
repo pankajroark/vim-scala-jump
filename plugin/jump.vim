@@ -36,6 +36,9 @@ function! s:BetterJump()
   let &shm=orig_shortmess.'s'
   let orig_cmdheight = &cmdheight
   let &cmdheight = 10
+  let orig_scrolloff = &scrolloff
+  " jumps should be centered
+  let &scrolloff = 999 
 
 :ruby <<EOF
 
@@ -47,6 +50,7 @@ EOF
 
   let &shm=orig_shortmess
   let &cmdheight = orig_cmdheight
+  let &scrolloff = orig_scrolloff
 endfunc
 
 

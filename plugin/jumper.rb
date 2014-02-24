@@ -33,6 +33,10 @@ class JumpEntry
     @filepath_without_extension = Util.drop_extension filepath
   end
 
+  def to_s
+    "#{@filepath}::#{@regex}"
+  end
+
 end
 
 class Jumper
@@ -125,19 +129,44 @@ class Jumper
   end
 
   def best_match_on_import(jump_entries, imports)
+    best_entries = best_matches_on_import(jump_entries, imports)
+    find_first_among_best best_entries
+  end
+
+  # so we have multiple matches, apply further rating on
+  # this selected set
+  def find_first_among_best(best_entries)
+    # val is lower preference than others
+    # variables are usually lower case so normally there are no conflicts
+    # but constans also start with capital letter, in such cases give 
+    # preference to non-val
+    non_val_entries = best_entries.select do |jump_entry|
+      jump_entry.regex.match(/\bval\b/).nil?
+    end
+    if non_val_entries.empty?
+      best_entries.first
+    else
+      non_val_entries.first
+    end
+  end
+
+  # @return   entries that match the most
+  def best_matches_on_import(jump_entries, imports)
     # find the entry that matches the most with import paths
-    best_entry = jump_entries.first
+    best_entries = Array.new
     best_match_count = -1
     jump_entries.each do |jump_entry|
       filepath_without_extension = jump_entry.filepath_without_extension
       match_count = imports_match_count(filepath_without_extension, imports)
       if(match_count > best_match_count)
         best_match_count = match_count
-        best_entry = jump_entry
+        best_entries = [jump_entry]
+      elsif (match_count == best_match_count)
+        best_entries << jump_entry
       end
     end
     Util.log "best entry has match count of #{best_match_count}"
-    best_entry
+    best_entries
   end
 
   # imports are array of dot separated parts
