@@ -31,7 +31,7 @@ function! s:JumpList(word)
   return jl
 endfunction
 
-function! BetterJump()
+function! s:BetterJump()
   let orig_shortmess = &shm
   let &shm=orig_shortmess.'s'
   let orig_cmdheight = &cmdheight
@@ -48,3 +48,6 @@ EOF
   let &shm=orig_shortmess
   let &cmdheight = orig_cmdheight
 endfunc
+
+
+command! BetterScalaJump :call s:BetterJump()
