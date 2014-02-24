@@ -38,11 +38,10 @@ end
 class Jumper
   # jump list is the typical tselect list
   # format
-  # ignore first line
-  # Split rest of the lines into bunches of 3
   # The first line has the file path as last element
-  # Third line has the regular expression to use to jump
+  # Last line has the regular expression to use to jump
   # to line in that file
+  # Some results span 3 lines, some 2 leading to unavoidable complexity
   def jump(jump_list_str)
     jump_list = jump_list_str.split("\n")
     clean_up_jump_list(jump_list)
@@ -231,16 +230,70 @@ class ImportsGrabber
   # e.g. for 
   # import com.twitter.some
   # import com.twitter.other
+  # import com.twitter.{ one, two }
   # , it would return
   # [ 'com.twitter.some',  'com.twitter.other']
   def get
+    import_lines = get_import_lines_from_file()
+    dotted_parts = extract_dotted_part import_lines
+    imports = get_import_components dotted_parts
+    imports.map do |import|
+      import.to_path
+    end
+  end
+
+  def get_import_lines_from_file
     import_lines =  lines.select do |line|
       line.start_with? "import"
     end
+  end
+
+  def extract_dotted_part import_lines
     import_lines.map do |line|
-      import = line.split(/\s+/).last
-      import.gsub('.', '/')
+      dotted_part = line.split(/\s+/).last
     end
+  end
+
+  # takes "com.twitter.some" or "com.twitter.{one, two}"
+  # @return array of Import objects
+  def get_import_components dotted_parts
+    aofa = dotted_parts.map do |dotted_part|
+      dotted_part_to_import dotted_part
+    end
+    aofa.flatten
+  end
+
+  # @return array of Import objects
+  def dotted_part_to_import dotted
+    parts = dotted.split('.')
+    components_str = parts.pop # parts modified here
+    if (components_str.start_with? '{')
+      comma_sep_contents = uncurly(components_str)
+      components = comma_sep_contents.split(/\s*,\s*/)
+      components.map do |component|
+        # component may be a mapping, eg. a => b
+        actual_component = import_mapping_to_import component
+        Import.new(parts.clone << actual_component)
+      end
+    else
+      # put back the last part
+      parts << components_str
+      [ Import.new(parts.clone) ]
+    end
+  end
+
+  # @param import_mapping_str e.g. a => b or simple a
+  def import_mapping_to_import maybe_import_mapping_str
+    if (maybe_import_mapping_str.include? '=>')
+      component_parts = maybe_import_mapping_str.split('=>')
+      component_parts[0].strip
+    else
+      maybe_import_mapping_str 
+    end
+  end
+
+  def uncurly str
+    str.gsub(/[{}]/, " ").strip
   end
 
   def lines
@@ -250,5 +303,20 @@ class ImportsGrabber
       lines << $curbuf[line_number]
     end
     lines
+  end
+end
+
+class Import
+  attr_reader :parts
+  def initialize(parts)
+    @parts = parts
+  end
+
+  def to_s
+    @parts.join('.')
+  end
+
+  def to_path
+    @parts.join('/')
   end
 end
