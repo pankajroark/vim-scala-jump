@@ -1,4 +1,4 @@
-exec expand("rubyfile <sfile>:p:h/plug.rb")
+exec expand("rubyfile <sfile>:p:h/jumper.rb")
 
 " copied from genutils
 function! s:GetVimCmdOutput(cmd)
