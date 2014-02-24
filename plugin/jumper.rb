@@ -272,14 +272,14 @@ class ImportsGrabber
   end
 
   def get_import_lines_from_file
-    import_lines =  lines.select do |line|
+    lines.select do |line|
       line.start_with? "import"
     end
   end
 
   def extract_dotted_part import_lines
     import_lines.map do |line|
-      dotted_part = line.split(/\s+/).last
+      line.sub(/^import\s+/, "")
     end
   end
 
